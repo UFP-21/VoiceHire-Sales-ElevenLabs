@@ -1,0 +1,5 @@
+run = "bash scripts/replit-start.sh"
+
+[deployment]
+build = ["bash", "scripts/replit-build.sh"]
+run = ["bash", "scripts/replit-start.sh"]
