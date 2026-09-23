@@ -1,12 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 test("mock call lifecycle", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("voicehire.locale", "ru"));
   await page.goto("/");
   await page.getByRole("button", { name: "Настройки" }).click();
   await page.getByLabel("API-ключ ElevenLabs").fill("mock-key");
   await page.getByRole("button", { name: "Проверить ключ" }).click();
   await expect(page.getByText("Mock-ключ принят")).toBeVisible();
-  await page.getByRole("button", { name: "Сохранить" }).click();
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await page.getByRole("button", { name: /Создать AI-агента|Обновить AI-агента/ }).click();
   await expect(page.getByText("Агент создан").first()).toBeVisible();
   await page.getByRole("button", { name: "Позвонить" }).click();

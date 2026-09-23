@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App.js";
+import { detectInitialLocale } from "./i18n.js";
 
 vi.mock("@elevenlabs/react", () => ({
   useConversation: () => ({
@@ -12,6 +13,8 @@ vi.mock("@elevenlabs/react", () => ({
   })
 }));
 
+const setLocale = (locale: "ru" | "en") => localStorage.setItem("voicehire.locale", locale);
+
 describe("App", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -19,7 +22,32 @@ describe("App", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the required Russian controls", () => {
+  it("uses English by default even for a Russian browser locale", () => {
+    expect(detectInitialLocale(null, "ru-RU")).toBe("en");
+    expect(detectInitialLocale(null, "en-US")).toBe("en");
+    expect(detectInitialLocale("ru", "en-US")).toBe("ru");
+
+    render(<App />);
+
+    expect(screen.getByRole("button", { name: /Create AI agent/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Call$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Settings/i })).toBeInTheDocument();
+    expect(screen.getByText("Technical log")).toBeInTheDocument();
+    expect(screen.getByText("Call timer")).toBeInTheDocument();
+    expect(screen.queryByText("Технический лог")).not.toBeInTheDocument();
+  });
+
+  it("opens the user guide from the header in the selected language", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Open user guide" }));
+    expect(screen.getByRole("dialog", { name: "How to use VoiceHire Sales AI" })).toBeInTheDocument();
+    expect(screen.getByText("The API key is kept only for the current browser session. Keys and tokens never appear in the technical log.")).toBeInTheDocument();
+  });
+
+  it("renders the required Russian controls when RU is selected", () => {
+    setLocale("ru");
     render(<App />);
 
     expect(screen.getByRole("button", { name: /Создать AI-агента/i })).toBeInTheDocument();
@@ -29,7 +57,69 @@ describe("App", () => {
     expect(screen.getByText("Таймер звонка")).toBeInTheDocument();
   });
 
+  it("switches locale, persists it, and sends the matching English prompt", async () => {
+    setLocale("ru");
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/validate-key")) {
+        return Response.json({
+          valid: true,
+          message: "Ключ действителен",
+          userEndpointAvailable: false,
+          voices: [{ id: "real_voice_1", name: "Rachel", category: "professional" }]
+        });
+      }
+      if (url.endsWith("/agents/ensure")) {
+        const body = JSON.parse(String(init?.body)) as { settings: { language: string; systemPrompt: string } };
+        expect(body.settings.language).toBe("en");
+        expect(body.settings.systemPrompt).toContain("Always speak in English");
+        return Response.json({ agentId: "agent_1", created: true, updated: false, configHash: "hash" });
+      }
+      return Response.json({}, { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "EN" }));
+    expect(localStorage.getItem("voicehire.locale")).toBe("en");
+    expect(screen.getByRole("button", { name: /Create AI agent/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Settings/i }));
+    await user.type(screen.getByLabelText("ElevenLabs API key"), "live-key");
+    await user.click(screen.getByRole("button", { name: /Validate key/i }));
+    await waitFor(() => expect(screen.getByLabelText("Voice")).toHaveValue("real_voice_1"));
+    await user.click(screen.getByRole("button", { name: /^Save$/i }));
+    await user.click(screen.getByRole("button", { name: /Create AI agent/i }));
+
+    await screen.findAllByText(/Agent created/i);
+  });
+
+  it("locks the locale switch during an active call and unlocks it after ending", async () => {
+    setLocale("en");
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Settings/i }));
+    await user.type(screen.getByLabelText("ElevenLabs API key"), "mock-key");
+    await user.click(screen.getByRole("button", { name: /Validate key/i }));
+    await screen.findByText(/Mock key accepted/i);
+    await user.click(screen.getByRole("button", { name: /^Save$/i }));
+    await user.click(screen.getByRole("button", { name: /Create AI agent/i }));
+    await screen.findAllByText(/Agent created/i);
+    await user.click(screen.getByRole("button", { name: "Call" }));
+
+    expect(screen.getByRole("button", { name: "RU" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "EN" })).toBeDisabled();
+
+    await user.click(await screen.findByRole("button", { name: "End conversation" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "RU" })).toBeEnabled());
+    expect(screen.getByRole("button", { name: "EN" })).toBeEnabled();
+  });
+
   it("stores mock API key in sessionStorage and mock agent id in localStorage", async () => {
+    setLocale("ru");
     const user = userEvent.setup();
     render(<App />);
 
@@ -47,6 +137,7 @@ describe("App", () => {
   });
 
   it("selects a real voice id after successful live key validation", async () => {
+    setLocale("ru");
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -81,6 +172,7 @@ describe("App", () => {
   });
 
   it("does not create a live agent with a mock voice id", async () => {
+    setLocale("ru");
     const fetchMock = vi.fn(async () =>
       Response.json({
         agentId: "agent_should_not_exist",
@@ -103,7 +195,54 @@ describe("App", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("shows localized backend error reasons", async () => {
+    setLocale("en");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            error: {
+              code: "INSUFFICIENT_PERMISSIONS",
+              message: "У ключа недостаточно разрешений для этого действия."
+            }
+          },
+          { status: 403 }
+        )
+      )
+    );
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Settings/i }));
+    await user.type(screen.getByLabelText("ElevenLabs API key"), "live-key");
+    await user.click(screen.getByRole("button", { name: /Validate key/i }));
+
+    expect(await screen.findByText("The key does not have enough permissions for this action.")).toBeInTheDocument();
+  });
+
+  it("does not expose API keys or conversation tokens in the technical log", async () => {
+    setLocale("en");
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Settings/i }));
+    await user.type(screen.getByLabelText("ElevenLabs API key"), "mock-key");
+    await user.click(screen.getByRole("button", { name: /Validate key/i }));
+    await screen.findByText(/Mock key accepted/i);
+    await user.click(screen.getByRole("button", { name: /^Save$/i }));
+    await user.click(screen.getByRole("button", { name: /Create AI agent/i }));
+    await screen.findAllByText(/Agent created/i);
+    await user.click(screen.getByRole("button", { name: "Call" }));
+    await screen.findByText(/Mock realtime session is active/i);
+
+    expect(screen.queryByText(/mock-key/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/mock_session_/i)).not.toBeInTheDocument();
+  });
+
   it("fills lead form after mock conversation ends without submitting it", async () => {
+    setLocale("ru");
     const user = userEvent.setup();
     render(<App />);
 

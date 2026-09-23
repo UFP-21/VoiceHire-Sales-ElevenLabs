@@ -2,8 +2,19 @@ import type { AgentSettings, ConversationTokenResponse, EnsureAgentResponse, Mod
 
 interface ApiErrorResponse {
   error?: {
+    code?: string;
     message?: string;
   };
+}
+
+export class BackendApiError extends Error {
+  code: string | null;
+
+  constructor(message: string, code: string | null) {
+    super(message);
+    this.name = "BackendApiError";
+    this.code = code;
+  }
 }
 
 const parseResponse = async <T>(response: Response): Promise<T> => {
@@ -12,7 +23,7 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
   }
 
   const payload = (await response.json().catch(() => ({}))) as ApiErrorResponse;
-  throw new Error(payload.error?.message ?? "Запрос к backend завершился ошибкой.");
+  throw new BackendApiError(payload.error?.message ?? "Backend request failed.", payload.error?.code ?? null);
 };
 
 export const elevenLabsClient = {

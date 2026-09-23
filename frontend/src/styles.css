@@ -95,6 +95,29 @@ h1 {
   gap: 12px;
 }
 
+.locale-switch {
+  background: #eef2f7;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  display: inline-grid;
+  grid-template-columns: repeat(2, 44px);
+  min-height: 42px;
+  padding: 3px;
+}
+
+.locale-switch button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #475569;
+  font-weight: 700;
+}
+
+.locale-switch button.active {
+  background: #ffffff;
+  color: #0f766e;
+}
+
 .status-pill,
 .state-badge {
   background: #eef2f7;
@@ -137,6 +160,34 @@ h1 {
   color: #1b2430;
   min-height: 42px;
   padding: 0 14px;
+}
+
+.guide-modal {
+  background: #ffffff;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  box-shadow: 0 18px 44px rgb(15 23 42 / 22%);
+  max-width: 620px;
+  padding: 24px;
+  width: min(620px, calc(100vw - 32px));
+}
+
+.guide-steps {
+  color: #1b2430;
+  display: grid;
+  gap: 12px;
+  line-height: 1.5;
+  margin: 20px 0;
+  padding-inline-start: 24px;
+}
+
+.guide-safety {
+  background: #e7f7ef;
+  border-inline-start: 3px solid #126b4f;
+  color: #126b4f;
+  line-height: 1.5;
+  margin: 0;
+  padding: 12px;
 }
 
 .workspace {

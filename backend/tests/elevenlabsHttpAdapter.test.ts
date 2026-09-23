@@ -98,6 +98,41 @@ describe("ElevenLabsHttpAdapter", () => {
     expect(String(createCall?.init?.body)).toContain("conversation_config");
   });
 
+  it("uses the English first message and language when agent settings are English", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push({ url, init });
+        if (url.includes("/v1/convai/agents?")) return { ok: true, json: async () => ({ agents: [] }) };
+        return { ok: true, json: async () => ({ agent_id: "agent_new" }) };
+      })
+    );
+
+    await new ElevenLabsHttpAdapter().ensureAgent("sk_test", {
+      storedAgentId: null,
+      settings: {
+        name: "VoiceHire Sales AI Demo",
+        language: "en",
+        voiceMode: "standard",
+        voiceId: "voice_1",
+        ttsModelId: "eleven_turbo_v2_5",
+        llmModelId: null,
+        systemPrompt: "Long English prompt for the VoiceHire Sales AI agent.",
+        debug: false
+      }
+    });
+
+    const createCall = calls.find((call) => call.url.includes("/v1/convai/agents/create"));
+    const payload = JSON.parse(String(createCall?.init?.body)) as {
+      conversation_config: { agent: { language: string; first_message: string; prompt: { prompt: string } }; tts: { model_id: string } };
+    };
+    expect(payload.conversation_config.agent.language).toBe("en");
+    expect(payload.conversation_config.agent.first_message).toContain("What is your role in hiring?");
+    expect(payload.conversation_config.agent.prompt.prompt).toContain("Long English prompt");
+    expect(payload.conversation_config.tts.model_id).toBe("eleven_turbo_v2_5");
+  });
+
   it("falls back to signed url response when token endpoint shape is unsupported", async () => {
     vi.stubGlobal(
       "fetch",

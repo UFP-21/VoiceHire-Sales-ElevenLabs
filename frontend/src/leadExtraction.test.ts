@@ -33,6 +33,19 @@ describe("extractLeadFromTranscript", () => {
     expect(lead.comment).toBe("Я Мария, хочу узнать цену VoiceHire AI. Напишите мне на maria.hr@example.com.");
   });
 
+  it("extracts English name and email", () => {
+    const lead = extractLeadFromTranscript(
+      [userTurn("My name is Edward. I am interested in VoiceHire AI pricing, please contact me at edward@example.com.")],
+      "en"
+    );
+
+    expect(lead).toEqual({
+      name: "Edward",
+      contact: "edward@example.com",
+      comment: "Interested in VoiceHire AI pricing and agrees to be contacted by a specialist."
+    });
+  });
+
   it("leaves contact empty when it is absent", () => {
     const lead = extractLeadFromTranscript([
       userTurn("Меня зовут Антон. Интересует демо VoiceHire AI для отдела найма.")

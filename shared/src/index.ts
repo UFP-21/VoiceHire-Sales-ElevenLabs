@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
   agentName: "voicehire.agentName",
   voiceId: "voicehire.voiceId",
   language: "voicehire.language",
+  locale: "voicehire.locale",
   configHash: "voicehire.configHash",
   debug: "voicehire.debug"
 } as const;
@@ -11,6 +12,8 @@ export const STORAGE_KEYS = {
 export const DEFAULT_AGENT_NAME = "VoiceHire Sales AI Demo";
 export const AGENT_TAG = "voicehire-sales-homework-v1";
 export const DEFAULT_LANGUAGE = "ru";
+export const LOCALES = ["ru", "en"] as const;
+export type Locale = (typeof LOCALES)[number];
 
 export const APP_EVENTS = [
   "api_key_validation_started",

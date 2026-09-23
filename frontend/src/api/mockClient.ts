@@ -2,6 +2,7 @@ import type {
   AgentSettings,
   ConversationTokenResponse,
   EnsureAgentResponse,
+  Locale,
   ModelOption,
   ValidateKeyResponse,
   VoiceOption
@@ -10,24 +11,24 @@ import type {
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 export const mockApi = {
-  async validateKey(apiKey: string): Promise<ValidateKeyResponse> {
+  async validateKey(apiKey: string, locale: Locale = "ru"): Promise<ValidateKeyResponse> {
     await wait(250);
     if (!apiKey.trim()) {
-      throw new Error("Введите API-ключ ElevenLabs");
+      throw new Error(locale === "ru" ? "Введите API-ключ ElevenLabs" : "Enter an ElevenLabs API key");
     }
     return {
       valid: true,
-      message: "Mock-ключ принят",
-      voices: await this.voices(),
+      message: locale === "ru" ? "Mock-ключ принят" : "Mock key accepted",
+      voices: await this.voices(locale),
       userEndpointAvailable: true
     };
   },
 
-  async voices(): Promise<VoiceOption[]> {
+  async voices(locale: Locale = "ru"): Promise<VoiceOption[]> {
     await wait(180);
     return [
-      { id: "mock_voice_standard", name: "Стандартный голос", category: "mock" },
-      { id: "mock_voice_warm", name: "Тёплый консультант", category: "mock" }
+      { id: "mock_voice_standard", name: locale === "ru" ? "Стандартный голос" : "Standard voice", category: "mock" },
+      { id: "mock_voice_warm", name: locale === "ru" ? "Тёплый консультант" : "Warm consultant", category: "mock" }
     ];
   },
 

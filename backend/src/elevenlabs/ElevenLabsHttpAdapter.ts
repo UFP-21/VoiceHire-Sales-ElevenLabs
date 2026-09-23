@@ -13,6 +13,7 @@ import { z } from "zod";
 import { ApiError, mapElevenLabsStatus, redactSecret } from "../errors/apiError.js";
 import { modelResponseSchema, voiceResponseSchema } from "../schemas/elevenlabsSchemas.js";
 import { createConfigHash, type ElevenLabsAdapter } from "./ElevenLabsAdapter.js";
+import { firstMessages, normalizeLocale } from "../prompts/voicehireSalesPrompt.js";
 
 const ELEVENLABS_BASE_URL = "https://api.elevenlabs.io";
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -302,13 +303,13 @@ const extractConfigHash = (tags: string[]): string | null => {
 
 const createAgentPayload = (request: EnsureAgentRequest, configHash: string) => {
   const { settings } = request;
+  const locale = normalizeLocale(settings.language);
   const agent: Record<string, unknown> = {
     prompt: {
       prompt: settings.systemPrompt
     },
-    first_message:
-      "Здравствуйте, я голосовой AI-консультант VoiceHire AI. Помогу понять, подходит ли вам формат первичных AI-собеседований. Какая у вас роль в найме?",
-    language: settings.language
+    first_message: firstMessages[locale],
+    language: locale
   };
 
   if (settings.llmModelId) {
